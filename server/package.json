@@ -1,0 +1,35 @@
+{
+  "name": "behavioral-biometrics-server",
+  "version": "1.0.0",
+  "description": "Backend server for behavioral biometrics authentication system",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "bun run server.js",
+    "dev": "bun --hot server.js",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.3",
+    "@types/uuid": "^9.0.5",
+    "bun-types": "latest"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "keywords": [
+    "biometrics",
+    "authentication",
+    "keystroke-dynamics",
+    "bun",
+    "security"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -2,23 +2,33 @@
   "name": "behavioral-biometrics-server",
   "version": "1.0.0",
   "description": "Backend server for behavioral biometrics authentication system",
-  "main": "server.js",
+  "main": "server.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run server.js",
-    "dev": "bun --hot server.js",
+    "start": "bun run server.ts",
+    "dev": "bun --hot server.ts",
+    "typecheck": "bun x tsc -p tsconfig.json --noEmit",
     "test": "bun test"
   },
   "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "uuid": "^9.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/helmet": "^4.0.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.3",
+    "@types/node": "^22.7.4",
     "@types/uuid": "^9.0.5",
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "typescript": "^5.6.3"
   },
   "engines": {
     "bun": ">=1.0.0"

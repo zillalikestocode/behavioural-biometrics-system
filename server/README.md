@@ -1,6 +1,6 @@
 # Behavioral Biometrics Authentication Server
 
-A high-performance backend server built with Bun for behavioral biometrics authentication using keystroke dynamics analysis.
+Backend server built with Express (running on Bun runtime) for behavioral biometrics authentication using keystroke dynamics analysis.
 
 ## Features
 
@@ -43,13 +43,13 @@ A high-performance backend server built with Bun for behavioral biometrics authe
    bun start
    ```
 
-The server will start at `http://localhost:3001`
+The server will start at `http://localhost:3000` by default (set PORT to override)
 
 ## API Endpoints
 
 ### Authentication
 
-#### POST `/api/login`
+#### POST `/api/auth/login`
 
 Authenticate user with biometric analysis.
 
@@ -82,7 +82,7 @@ Authenticate user with biometric analysis.
 }
 ```
 
-#### POST `/api/step-up`
+#### POST `/api/auth/step-up`
 
 Complete step-up authentication challenge.
 
@@ -98,9 +98,23 @@ Complete step-up authentication challenge.
 }
 ```
 
+#### GET `/api/auth/validate`
+
+Validate a session token passed in Authorization header.
+
+Response:
+
+```json
+{
+  "valid": true,
+  "user": { "username": "string", "loginTime": 0, "riskScore": 0 },
+  "message": "Session valid"
+}
+```
+
 ### Health Check
 
-#### GET `/health`
+#### GET `/health` or `/api/health`
 
 Server health and status information.
 
@@ -180,26 +194,28 @@ Target performance benchmarks:
 
 ```
 server/
-├── server.js              # Main server entry point
-├── middleware/             # Request middleware
-│   └── index.js           # Security, logging, rate limiting
-├── routes/                 # API route handlers
-│   └── auth.js            # Authentication endpoints
-├── services/               # Business logic
-│   ├── riskCalculator.js  # ML risk assessment
-│   ├── userManager.js     # User data management
-│   └── challengeManager.js # Step-up challenges
-└── utils/                  # Utilities
-    ├── logger.js          # Structured logging
-    ├── rateLimiter.js     # Rate limiting
-    └── errors.js          # Error handling
+├── server.ts              # Express server entry point
+├── middleware/            # Request middleware
+│   ├── rateLimit.ts       # Express rate limiting
+│   └── requestContext.ts  # Request context + logging
+├── routes/                # API route handlers
+│   ├── index.ts           # Mounts /auth
+│   └── auth.ts            # /api/auth/* endpoints
+├── services/              # Business logic
+│   ├── riskCalculator.ts  # Risk assessment
+│   ├── userManager.ts     # User data management
+│   └── challengeManager.ts# Step-up challenges
+└── utils/                 # Utilities
+  ├── logger.ts          # Structured logging
+  ├── rateLimiter.ts     # Rate limiting
+  └── errors.ts          # Error handling
 ```
 
 ## Environment Variables
 
 | Variable       | Description     | Default                |
 | -------------- | --------------- | ---------------------- |
-| `PORT`         | Server port     | 3001                   |
+| `PORT`         | Server port     | 3000                   |
 | `HOST`         | Server host     | 0.0.0.0                |
 | `FRONTEND_URL` | CORS origin     | http://localhost:5173  |
 | `JWT_SECRET`   | JWT signing key | (change in production) |
@@ -218,7 +234,11 @@ server/
 ### Testing
 
 ```bash
-bun test
+# Typecheck
+bun x tsc -p tsconfig.json --noEmit
+
+# Smoke test (server running)
+bun run test-auth-flow.ts
 ```
 
 ### Debugging
@@ -256,7 +276,7 @@ The current implementation uses in-memory storage. For production:
 ### Health Check
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:3000/health
 ```
 
 ### Metrics

@@ -1,20 +1,24 @@
 /**
- * Advanced risk calculation engine for keystroke dynamics analysis
- * Implements multiple algorithms for comprehensive biometric assessment
+ * Advanced risk calculation engine for keystroke dynamics analysis (TypeScript)
  */
 
-import { Logger } from "../utils/logger.js";
+import { Logger } from "../utils/logger";
+import { BiometricFeatures, BiometricProfile } from "../types";
 
 export class RiskCalculator {
   /**
    * Calculate comprehensive risk score combining multiple factors
    */
-  static async calculateRisk(currentFeatures, userProfile, clientRiskScore) {
+  static async calculateRisk(
+    currentFeatures: BiometricFeatures,
+    userProfile: BiometricProfile | undefined,
+    clientRiskScore: number
+  ) {
     const startTime = Date.now();
 
     try {
       // Initialize risk factors
-      const factors = {
+      const factors: Record<string, number> = {
         temporal: 0,
         behavioral: 0,
         consistency: 0,
@@ -82,19 +86,16 @@ export class RiskCalculator {
         sampleCount: userProfile.samples.length,
       });
 
-      return {
-        finalScore,
-        factors,
-        confidence,
-        analysis,
-      };
+      return { finalScore, factors, confidence, analysis };
     } catch (error) {
-      Logger.error("Risk calculation failed:", error);
+      Logger.error("Risk calculation failed:", {
+        error: (error as Error).message,
+      });
 
       // Fallback to high risk on calculation failure
       return {
         finalScore: 0.8,
-        factors: { error: true },
+        factors: { error: 1 },
         confidence: 0,
         analysis: "Risk calculation failed - defaulting to high risk",
       };
@@ -104,7 +105,10 @@ export class RiskCalculator {
   /**
    * Calculate temporal pattern risk (hold times and flight times)
    */
-  static calculateTemporalRisk(current, profile) {
+  static calculateTemporalRisk(
+    current: BiometricFeatures,
+    profile: BiometricProfile
+  ) {
     const avgHoldTimes = this.calculateAverage(
       profile.samples.map((s) => s.avgHoldTime)
     );
@@ -117,9 +121,9 @@ export class RiskCalculator {
 
     // Calculate relative deviations
     const holdDeviation =
-      Math.abs(currentHoldAvg - avgHoldTimes) / avgHoldTimes;
+      Math.abs(currentHoldAvg - avgHoldTimes) / (avgHoldTimes || 1);
     const flightDeviation =
-      Math.abs(currentFlightAvg - avgFlightTimes) / avgFlightTimes;
+      Math.abs(currentFlightAvg - avgFlightTimes) / (avgFlightTimes || 1);
 
     // Normalize to 0-1 scale
     const holdRisk = Math.min(holdDeviation * 2, 1);
@@ -131,7 +135,10 @@ export class RiskCalculator {
   /**
    * Calculate behavioral pattern risk
    */
-  static calculateBehavioralRisk(current, profile) {
+  static calculateBehavioralRisk(
+    current: BiometricFeatures,
+    profile: BiometricProfile
+  ) {
     const avgErrorRate = this.calculateAverage(
       profile.samples.map((s) => s.errorRate)
     );
@@ -144,7 +151,7 @@ export class RiskCalculator {
 
     // Typing speed deviation (normalized)
     const speedDeviation =
-      Math.abs(current.typingSpeed - avgTypingSpeed) / avgTypingSpeed;
+      Math.abs(current.typingSpeed - avgTypingSpeed) / (avgTypingSpeed || 1);
 
     // Combine factors
     const errorRisk = Math.min(errorDeviation * 5, 1); // Error rates should be very stable
@@ -156,7 +163,10 @@ export class RiskCalculator {
   /**
    * Calculate consistency risk based on variance patterns
    */
-  static calculateConsistencyRisk(current, profile) {
+  static calculateConsistencyRisk(
+    current: BiometricFeatures,
+    profile: BiometricProfile
+  ) {
     // Calculate variance of current session
     const currentHoldVariance = this.calculateVariance(current.holdTimes);
     const currentFlightVariance = this.calculateVariance(current.flightTimes);
@@ -189,7 +199,10 @@ export class RiskCalculator {
   /**
    * Calculate statistical deviation risk using z-scores
    */
-  static calculateDeviationRisk(current, profile) {
+  static calculateDeviationRisk(
+    current: BiometricFeatures,
+    profile: BiometricProfile
+  ) {
     const samples = profile.samples;
 
     // Calculate z-scores for key metrics
@@ -197,12 +210,10 @@ export class RiskCalculator {
       this.calculateAverage(current.holdTimes),
       samples.map((s) => s.avgHoldTime)
     );
-
     const flightTimeZScore = this.calculateZScore(
       this.calculateAverage(current.flightTimes),
       samples.map((s) => s.avgFlightTime)
     );
-
     const typingSpeedZScore = this.calculateZScore(
       current.typingSpeed,
       samples.map((s) => s.typingSpeed)
@@ -219,7 +230,10 @@ export class RiskCalculator {
   /**
    * Calculate velocity/acceleration risk
    */
-  static calculateVelocityRisk(current, profile) {
+  static calculateVelocityRisk(
+    current: BiometricFeatures,
+    profile: BiometricProfile
+  ) {
     // Analyze typing rhythm changes within the session
     const holdTimes = current.holdTimes;
     const flightTimes = current.flightTimes;
@@ -229,15 +243,19 @@ export class RiskCalculator {
     }
 
     // Calculate velocity changes (rate of change in timing)
-    const holdVelocities = [];
-    const flightVelocities = [];
+    const holdVelocities: number[] = [];
+    const flightVelocities: number[] = [];
 
     for (let i = 1; i < holdTimes.length; i++) {
-      holdVelocities.push(holdTimes[i] - holdTimes[i - 1]);
+      const cur = holdTimes[i] ?? 0;
+      const prev = holdTimes[i - 1] ?? cur;
+      holdVelocities.push(cur - prev);
     }
 
     for (let i = 1; i < flightTimes.length; i++) {
-      flightVelocities.push(flightTimes[i] - flightTimes[i - 1]);
+      const cur = flightTimes[i] ?? 0;
+      const prev = flightTimes[i - 1] ?? cur;
+      flightVelocities.push(cur - prev);
     }
 
     // Calculate velocity variance (smoothness of typing)
@@ -261,8 +279,8 @@ export class RiskCalculator {
   /**
    * Calculate weighted final score
    */
-  static calculateWeightedScore(factors) {
-    const weights = {
+  static calculateWeightedScore(factors: Record<string, number>) {
+    const weights: Record<string, number> = {
       temporal: 0.25,
       behavioral: 0.2,
       consistency: 0.2,
@@ -287,7 +305,7 @@ export class RiskCalculator {
   /**
    * Calculate confidence based on profile maturity
    */
-  static calculateConfidence(profile) {
+  static calculateConfidence(profile: BiometricProfile) {
     const sampleCount = profile.samples.length;
     const daysSinceFirstSample =
       (Date.now() - new Date(profile.createdAt).getTime()) /
@@ -303,38 +321,38 @@ export class RiskCalculator {
   /**
    * Generate human-readable analysis
    */
-  static generateAnalysis(factors, finalScore) {
+  static generateAnalysis(factors: Record<string, number>, finalScore: number) {
     const riskLevel =
       finalScore < 0.3 ? "Low" : finalScore < 0.7 ? "Medium" : "High";
-    const primaryRisk = Object.entries(factors)
+    const sorted = Object.entries(factors)
       .filter(([key, value]) => key !== "client" && typeof value === "number")
       .sort(([, a], [, b]) => b - a)[0];
-
+    const primaryRisk = sorted ?? ["unknown", 0];
     return `${riskLevel} risk detected. Primary concern: ${primaryRisk[0]} (${(
-      primaryRisk[1] * 100
+      Number(primaryRisk[1]) * 100
     ).toFixed(1)}%)`;
   }
 
   // Helper mathematical functions
 
-  static calculateAverage(array) {
+  static calculateAverage(array: number[]) {
     return array.length > 0
       ? array.reduce((sum, val) => sum + val, 0) / array.length
       : 0;
   }
 
-  static calculateVariance(array) {
+  static calculateVariance(array: number[]) {
     if (array.length < 2) return 0;
     const avg = this.calculateAverage(array);
     const squaredDiffs = array.map((val) => Math.pow(val - avg, 2));
     return this.calculateAverage(squaredDiffs);
   }
 
-  static calculateStandardDeviation(array) {
+  static calculateStandardDeviation(array: number[]) {
     return Math.sqrt(this.calculateVariance(array));
   }
 
-  static calculateZScore(value, historicalValues) {
+  static calculateZScore(value: number, historicalValues: number[]) {
     if (historicalValues.length < 2) return 0;
     const mean = this.calculateAverage(historicalValues);
     const std = this.calculateStandardDeviation(historicalValues);

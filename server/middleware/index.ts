@@ -1,16 +1,17 @@
 /**
- * Middleware system for request processing
+ * Middleware system for request processing (TypeScript)
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { Logger } from "../utils/logger.js";
-import { RateLimiter } from "../utils/rateLimiter.js";
-import { ValidationError } from "../utils/errors.js";
+import { Logger } from "../utils/logger";
+import { RateLimiter } from "../utils/rateLimiter";
+import { ValidationError } from "../utils/errors";
+import { ExtendedRequest, LogContext } from "../types";
 
 /**
  * Security headers middleware
  */
-export const securityHeaders = (request) => {
+export const securityHeaders = (request: Request) => {
   const headers = new Headers();
 
   // CORS headers
@@ -48,7 +49,7 @@ export const securityHeaders = (request) => {
 /**
  * Request logging middleware
  */
-export const requestLogger = (request) => {
+export const requestLogger = (request: Request): LogContext => {
   const startTime = Date.now();
   const url = new URL(request.url);
   const method = request.method;
@@ -70,7 +71,10 @@ export const requestLogger = (request) => {
 /**
  * Rate limiting middleware
  */
-export const rateLimitMiddleware = async (request, context) => {
+export const rateLimitMiddleware = async (
+  request: Request,
+  context: LogContext
+) => {
   const url = new URL(request.url);
   const ip = context.ip;
 
@@ -119,7 +123,7 @@ export const rateLimitMiddleware = async (request, context) => {
 /**
  * Input sanitization middleware
  */
-export const sanitizeInput = async (request) => {
+export const sanitizeInput = async (request: Request) => {
   if (request.method !== "POST" && request.method !== "PUT") {
     return request;
   }
@@ -132,7 +136,10 @@ export const sanitizeInput = async (request) => {
 
       // Basic XSS prevention
       const sanitizedBody = body
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+        .replace(
+          /<script\b[^<]*(?:(?!<\/[sS]cript>)<[^<]*)*<\/[sS]cript>/gi,
+          ""
+        )
         .replace(/javascript:/gi, "")
         .replace(/on\w+\s*=/gi, "");
 
@@ -144,7 +151,9 @@ export const sanitizeInput = async (request) => {
       });
     }
   } catch (error) {
-    Logger.warn("Input sanitization failed:", error);
+    Logger.warn("Input sanitization failed:", {
+      error: (error as Error).message,
+    });
   }
 
   return request;
@@ -154,7 +163,7 @@ export const sanitizeInput = async (request) => {
  * Main middleware orchestrator
  */
 export const middleware = {
-  async apply(request) {
+  async apply(request: Request): Promise<Response | ExtendedRequest> {
     // Add unique request ID
     const requestId = uuidv4();
 
@@ -176,9 +185,10 @@ export const middleware = {
         if (prop === "id") return requestId;
         if (prop === "context") return logContext;
         if (prop === "securityHeaders") return securityHeaders(request);
-        return target[prop];
+        // @ts-ignore - index signature passthrough
+        return (target as any)[prop];
       },
-    });
+    }) as ExtendedRequest;
 
     return enhancedRequest;
   },

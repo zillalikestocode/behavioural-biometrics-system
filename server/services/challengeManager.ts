@@ -1,29 +1,49 @@
 /**
- * Challenge management system for step-up authentication
- * Implements various challenge types for high-risk scenarios
+ * Challenge management system for step-up authentication (TypeScript)
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { Logger } from "../utils/logger.js";
+import { Logger } from "../utils/logger";
+
+export interface ChallengeData {
+  id: string;
+  userId: string;
+  type: string;
+  question: string;
+  answer: string | number;
+  hints: string[];
+  createdAt: string;
+  expiresAt: string;
+  attempts: number;
+  maxAttempts: number;
+  completed: boolean;
+}
 
 export class ChallengeManager {
-  static challenges = new Map();
+  static challenges: Map<string, ChallengeData> = new Map();
   static challengeTypes = [
     "math",
     "pattern",
     "memory",
     "captcha",
     "security_questions",
-  ];
+  ] as const;
 
   /**
    * Create a new challenge for user
    */
-  static async createChallenge(userId, type = null) {
+  static async createChallenge(
+    userId: string,
+    type: (typeof ChallengeManager.challengeTypes)[number] | null = null
+  ) {
     const challengeId = uuidv4();
-    const challengeType = type || this.selectRandomChallengeType();
+    const challengeType = type ?? this.selectRandomChallengeType();
 
-    let challenge;
+    let challenge: {
+      question: string;
+      answer: string | number;
+      hints?: string[];
+    };
 
     switch (challengeType) {
       case "math":
@@ -45,10 +65,10 @@ export class ChallengeManager {
         challenge = this.createMathChallenge();
     }
 
-    const challengeData = {
+    const challengeData: ChallengeData = {
       id: challengeId,
       userId,
-      type: challengeType,
+      type: challengeType as string,
       question: challenge.question,
       answer: challenge.answer,
       hints: challenge.hints || [],
@@ -81,25 +101,19 @@ export class ChallengeManager {
   /**
    * Verify challenge solution
    */
-  static async verifyChallenge(challengeId, solution) {
+  static async verifyChallenge(challengeId: string, solution: string) {
     const challenge = this.challenges.get(challengeId);
 
     if (!challenge) {
       Logger.warn(`Challenge verification failed - not found: ${challengeId}`);
-      return {
-        valid: false,
-        error: "Challenge not found or expired",
-      };
+      return { valid: false, error: "Challenge not found or expired" } as const;
     }
 
     // Check if challenge is expired
     if (new Date() > new Date(challenge.expiresAt)) {
       this.challenges.delete(challengeId);
       Logger.warn(`Challenge verification failed - expired: ${challengeId}`);
-      return {
-        valid: false,
-        error: "Challenge expired",
-      };
+      return { valid: false, error: "Challenge expired" } as const;
     }
 
     // Check if challenge is already completed
@@ -107,10 +121,7 @@ export class ChallengeManager {
       Logger.warn(
         `Challenge verification failed - already completed: ${challengeId}`
       );
-      return {
-        valid: false,
-        error: "Challenge already completed",
-      };
+      return { valid: false, error: "Challenge already completed" } as const;
     }
 
     // Check attempt limit
@@ -119,10 +130,7 @@ export class ChallengeManager {
       Logger.warn(
         `Challenge verification failed - max attempts: ${challengeId}`
       );
-      return {
-        valid: false,
-        error: "Maximum attempts exceeded",
-      };
+      return { valid: false, error: "Maximum attempts exceeded" } as const;
     }
 
     // Increment attempt counter
@@ -141,7 +149,7 @@ export class ChallengeManager {
       });
 
       return {
-        valid: true,
+        valid: true as const,
         userId: challenge.userId,
         challengeType: challenge.type,
         attempts: challenge.attempts,
@@ -156,7 +164,7 @@ export class ChallengeManager {
       );
 
       return {
-        valid: false,
+        valid: false as const,
         error: "Incorrect solution",
         attemptsRemaining: challenge.maxAttempts - challenge.attempts,
       };
@@ -166,27 +174,20 @@ export class ChallengeManager {
   /**
    * Verify solution based on challenge type
    */
-  static verifySolution(challenge, solution) {
+  static verifySolution(challenge: ChallengeData, solution: string) {
     const normalizedSolution = solution.toString().toLowerCase().trim();
     const normalizedAnswer = challenge.answer.toString().toLowerCase().trim();
 
     switch (challenge.type) {
       case "math":
         return parseFloat(normalizedSolution) === parseFloat(normalizedAnswer);
-
       case "pattern":
-        return normalizedSolution === normalizedAnswer;
-
       case "memory":
-        return normalizedSolution === normalizedAnswer;
-
       case "captcha":
         return normalizedSolution === normalizedAnswer;
-
       case "security_questions":
         // More flexible matching for security questions
         return this.fuzzyMatch(normalizedSolution, normalizedAnswer);
-
       default:
         return normalizedSolution === normalizedAnswer;
     }
@@ -195,9 +196,9 @@ export class ChallengeManager {
   /**
    * Fuzzy matching for security questions
    */
-  static fuzzyMatch(solution, answer) {
+  static fuzzyMatch(solution: string, answer: string) {
     // Remove common words and normalize
-    const normalize = (str) =>
+    const normalize = (str: string) =>
       str
         .replace(/[^a-z0-9\s]/g, "")
         .replace(/\b(the|a|an|and|or|but|in|on|at|to|for|of|with|by)\b/g, "")
@@ -210,7 +211,7 @@ export class ChallengeManager {
     // Exact match
     if (normalizedSolution === normalizedAnswer) return true;
 
-    // Substring match (solution contains answer or vice versa)
+    // Substring match
     if (
       normalizedSolution.includes(normalizedAnswer) ||
       normalizedAnswer.includes(normalizedSolution)
@@ -227,7 +228,7 @@ export class ChallengeManager {
       normalizedSolution.length,
       normalizedAnswer.length
     );
-    const similarity = 1 - distance / maxLength;
+    const similarity = 1 - (distance ?? 0) / (maxLength || 1);
 
     return similarity >= 0.8; // 80% similarity threshold
   }
@@ -235,26 +236,26 @@ export class ChallengeManager {
   /**
    * Calculate Levenshtein distance
    */
-  static levenshteinDistance(a, b) {
-    const matrix = Array(a.length + 1)
-      .fill()
-      .map(() => Array(b.length + 1).fill(0));
+  static levenshteinDistance(a: string, b: string) {
+    const matrix: number[][] = Array.from({ length: a.length + 1 }, () =>
+      Array(b.length + 1).fill(0)
+    );
 
-    for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-    for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+    for (let i = 0; i <= a.length; i++) matrix[i]![0] = i;
+    for (let j = 0; j <= b.length; j++) matrix[0]![j] = j;
 
     for (let i = 1; i <= a.length; i++) {
       for (let j = 1; j <= b.length; j++) {
         const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1, // deletion
-          matrix[i][j - 1] + 1, // insertion
-          matrix[i - 1][j - 1] + cost // substitution
+        matrix[i]![j] = Math.min(
+          matrix[i - 1]![j]! + 1, // deletion
+          matrix[i]![j - 1]! + 1, // insertion
+          matrix[i - 1]![j - 1]! + cost // substitution
         );
       }
     }
 
-    return matrix[a.length][b.length];
+    return matrix[a.length]![b.length]!;
   }
 
   /**
@@ -270,10 +271,13 @@ export class ChallengeManager {
    * Create math challenge
    */
   static createMathChallenge() {
-    const operations = ["+", "-", "*"];
+    const operations = ["+", "-", "*"] as const;
     const operation = operations[Math.floor(Math.random() * operations.length)];
 
-    let a, b, answer, question;
+    let a = 0,
+      b = 0,
+      answer: number = 0,
+      question = "";
 
     switch (operation) {
       case "+":
@@ -282,14 +286,12 @@ export class ChallengeManager {
         answer = a + b;
         question = `What is ${a} + ${b}?`;
         break;
-
       case "-":
         a = Math.floor(Math.random() * 50) + 50;
         b = Math.floor(Math.random() * 30) + 10;
         answer = a - b;
         question = `What is ${a} - ${b}?`;
         break;
-
       case "*":
         a = Math.floor(Math.random() * 12) + 2;
         b = Math.floor(Math.random() * 12) + 2;
@@ -313,16 +315,12 @@ export class ChallengeManager {
       { sequence: [1, 1, 2, 3, 5], next: 8, rule: "Fibonacci" },
     ];
 
-    const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+    const pattern = patterns[Math.floor(Math.random() * patterns.length)]!;
     const question = `What is the next number in this sequence: ${pattern.sequence.join(
       ", "
     )}, ?`;
 
-    return {
-      question,
-      answer: pattern.next,
-      hints: [`Hint: ${pattern.rule}`],
-    };
+    return { question, answer: pattern.next, hints: [`Hint: ${pattern.rule}`] };
   }
 
   /**
@@ -339,11 +337,11 @@ export class ChallengeManager {
       "guitar",
       "house",
     ];
-    const sequence = [];
+    const sequence: string[] = [];
     const length = Math.floor(Math.random() * 3) + 4; // 4-6 words
 
     for (let i = 0; i < length; i++) {
-      const word = words[Math.floor(Math.random() * words.length)];
+      const word = words[Math.floor(Math.random() * words.length)]!;
       if (!sequence.includes(word)) {
         sequence.push(word);
       } else {
@@ -356,10 +354,7 @@ export class ChallengeManager {
       " - "
     )}". What was the ${this.ordinal(targetIndex + 1)} word?`;
 
-    return {
-      question,
-      answer: sequence[targetIndex],
-    };
+    return { question, answer: sequence[targetIndex]! };
   }
 
   /**
@@ -374,7 +369,6 @@ export class ChallengeManager {
       captcha += letters.charAt(Math.floor(Math.random() * letters.length));
     }
 
-    // Simulate visual distortion description
     const distortions = [
       "slightly rotated",
       "with wavy lines",
@@ -404,7 +398,7 @@ export class ChallengeManager {
       { q: "What was your favorite subject in school?", a: "mathematics" },
     ];
 
-    const qa = questions[Math.floor(Math.random() * questions.length)];
+    const qa = questions[Math.floor(Math.random() * questions.length)]!;
 
     return {
       question: qa.q + " (This is a demo - any reasonable answer will work)",
@@ -415,7 +409,7 @@ export class ChallengeManager {
   /**
    * Get ordinal number string
    */
-  static ordinal(n) {
+  static ordinal(n: number) {
     const ordinals = [
       "",
       "first",

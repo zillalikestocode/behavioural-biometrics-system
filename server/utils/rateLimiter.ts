@@ -1,10 +1,16 @@
 /**
- * Rate limiting utility using in-memory storage
- * In production, this should use Redis or similar
+ * Rate limiting utility using in-memory storage (TypeScript)
+ * In production, use Redis or similar
  */
 
+interface Bucket {
+  count: number;
+  resetTime: number;
+  firstRequest: number;
+}
+
 export class RateLimiter {
-  static store = new Map();
+  static store: Map<string, Bucket> = new Map();
 
   /**
    * Clean up expired entries
@@ -21,7 +27,12 @@ export class RateLimiter {
   /**
    * Check if request is within rate limit
    */
-  static async checkLimit(identifier, endpoint, windowMs, maxRequests) {
+  static async checkLimit(
+    identifier: string,
+    endpoint: string,
+    windowMs: number,
+    maxRequests: number
+  ): Promise<boolean> {
     const key = `${identifier}:${endpoint}`;
     const now = Date.now();
 
@@ -58,15 +69,15 @@ export class RateLimiter {
   /**
    * Get current limit status for identifier
    */
-  static getStatus(identifier, endpoint) {
+  static getStatus(identifier: string, endpoint: string) {
     const key = `${identifier}:${endpoint}`;
     const bucket = this.store.get(key);
 
     if (!bucket) {
       return {
         count: 0,
-        resetTime: null,
-        remaining: null,
+        resetTime: null as number | null,
+        remaining: null as number | null,
       };
     }
 
@@ -80,7 +91,7 @@ export class RateLimiter {
   /**
    * Reset limits for identifier (admin function)
    */
-  static reset(identifier, endpoint = null) {
+  static reset(identifier: string, endpoint: string | null = null) {
     if (endpoint) {
       const key = `${identifier}:${endpoint}`;
       this.store.delete(key);

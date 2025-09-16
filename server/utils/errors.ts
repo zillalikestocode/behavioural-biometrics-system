@@ -1,20 +1,30 @@
 /**
- * Custom error classes for better error handling
+ * Custom error classes for better error handling (TypeScript)
  */
 
 export class AppError extends Error {
-  constructor(message, statusCode = 500, code = "INTERNAL_ERROR") {
+  statusCode: number;
+  code: string;
+  timestamp: string;
+  field?: string | null;
+  retryAfter?: number;
+  riskScore?: number | null;
+
+  constructor(message: string, statusCode = 500, code = "INTERNAL_ERROR") {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
     this.timestamp = new Date().toISOString();
 
-    Error.captureStackTrace(this, this.constructor);
+    if ((Error as any).captureStackTrace) {
+      (Error as any).captureStackTrace(this, this.constructor);
+    }
   }
 }
 
 export class ValidationError extends AppError {
-  constructor(message, field = null) {
+  override field: string | null;
+  constructor(message: string, field: string | null = null) {
     super(message, 400, "VALIDATION_ERROR");
     this.field = field;
   }
@@ -33,6 +43,7 @@ export class AuthorizationError extends AppError {
 }
 
 export class RateLimitError extends AppError {
+  override retryAfter: number;
   constructor(message = "Rate limit exceeded", retryAfter = 60) {
     super(message, 429, "RATE_LIMIT_ERROR");
     this.retryAfter = retryAfter;
@@ -40,7 +51,8 @@ export class RateLimitError extends AppError {
 }
 
 export class BiometricError extends AppError {
-  constructor(message, riskScore = null) {
+  override riskScore: number | null;
+  constructor(message: string, riskScore: number | null = null) {
     super(message, 403, "BIOMETRIC_ERROR");
     this.riskScore = riskScore;
   }
@@ -49,19 +61,22 @@ export class BiometricError extends AppError {
 /**
  * Error response formatter
  */
-export const formatErrorResponse = (error, requestId = null) => {
-  const response = {
+export const formatErrorResponse = (
+  error: any,
+  requestId: string | null = null
+) => {
+  const response: Record<string, unknown> = {
     error: error.code || "INTERNAL_ERROR",
-    message: error.message,
+    message: error.message || "Unknown error",
     timestamp: error.timestamp || new Date().toISOString(),
-    ...(requestId && { requestId }),
+    ...(requestId ? { requestId } : {}),
   };
 
   // Add specific error fields
-  if (error.field) response.field = error.field;
-  if (error.retryAfter) response.retryAfter = error.retryAfter;
+  if (error.field) (response as any).field = error.field;
+  if (error.retryAfter) (response as any).retryAfter = error.retryAfter;
   if (error.riskScore !== null && error.riskScore !== undefined) {
-    response.riskScore = error.riskScore;
+    (response as any).riskScore = error.riskScore;
   }
 
   return response;

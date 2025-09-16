@@ -1,16 +1,21 @@
 /**
- * User management service with in-memory storage
- * In production, this should use a proper database
+ * User management service with in-memory storage (TypeScript)
  */
 
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
-import { Logger } from "../utils/logger.js";
-import { AuthenticationError } from "../utils/errors.js";
+import { Logger } from "../utils/logger";
+import { AuthenticationError } from "../utils/errors";
+import {
+  BiometricFeatures,
+  BiometricProfile,
+  BiometricSampleSummary,
+  UserRecord,
+} from "../types";
 
 export class UserManager {
-  static users = new Map();
-  static biometricProfiles = new Map();
+  static users: Map<string, UserRecord> = new Map();
+  static biometricProfiles: Map<string, BiometricProfile> = new Map();
 
   // Initialize with demo users
   static async initialize() {
@@ -23,27 +28,11 @@ export class UserManager {
    */
   static async createDemoUsers() {
     const demoUsers = [
-      {
-        username: "lowrisk",
-        password: "pass123",
-        profile: "consistent",
-      },
-      {
-        username: "highrisk",
-        password: "pass123",
-        profile: "robotic",
-      },
-      {
-        username: "normal",
-        password: "pass123",
-        profile: "normal",
-      },
-      {
-        username: "admin",
-        password: "admin123",
-        profile: "consistent",
-      },
-    ];
+      { username: "lowrisk", password: "pass123", profile: "consistent" },
+      { username: "highrisk", password: "pass123", profile: "robotic" },
+      { username: "normal", password: "pass123", profile: "normal" },
+      { username: "admin", password: "admin123", profile: "consistent" },
+    ] as const;
 
     for (const demo of demoUsers) {
       await this.createUser(demo.username, demo.password, demo.profile);
@@ -53,7 +42,11 @@ export class UserManager {
   /**
    * Create a new user
    */
-  static async createUser(username, password, profileType = "normal") {
+  static async createUser(
+    username: string,
+    password: string,
+    profileType: "normal" | "consistent" | "robotic" = "normal"
+  ) {
     const existingUser = Array.from(this.users.values()).find(
       (user) => user.username === username
     );
@@ -66,7 +59,7 @@ export class UserManager {
     const hashedPassword = await bcrypt.hash(password, 12);
     const userId = uuidv4();
 
-    const user = {
+    const user: UserRecord = {
       id: userId,
       username,
       password: hashedPassword,
@@ -89,8 +82,11 @@ export class UserManager {
   /**
    * Create biometric profile with synthetic data for demo
    */
-  static createBiometricProfile(userId, profileType) {
-    const profile = {
+  static createBiometricProfile(
+    userId: string,
+    profileType: "normal" | "consistent" | "robotic"
+  ): BiometricProfile {
+    const profile: BiometricProfile = {
       userId,
       createdAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
@@ -114,9 +110,14 @@ export class UserManager {
   /**
    * Generate synthetic keystroke sample
    */
-  static generateSyntheticSample(profileType) {
-    let baseHoldTime, baseFlightTime, baseErrorRate, baseTypingSpeed;
-    let variance;
+  static generateSyntheticSample(
+    profileType: "normal" | "consistent" | "robotic"
+  ): BiometricSampleSummary {
+    let baseHoldTime: number,
+      baseFlightTime: number,
+      baseErrorRate: number,
+      baseTypingSpeed: number;
+    let variance: number;
 
     switch (profileType) {
       case "consistent":
@@ -183,7 +184,7 @@ export class UserManager {
   /**
    * Validate user credentials
    */
-  static async validateUser(username, password) {
+  static async validateUser(username: string, password: string) {
     const user = Array.from(this.users.values()).find(
       (user) => user.username === username && user.isActive
     );
@@ -214,18 +215,21 @@ export class UserManager {
   /**
    * Get user by ID
    */
-  static async getUserById(userId) {
+  static async getUserById(userId: string) {
     const user = this.users.get(userId);
     if (user) {
       user.biometricProfile = this.biometricProfiles.get(userId);
     }
-    return user;
+    return user || null;
   }
 
   /**
    * Update biometric profile with new sample
    */
-  static async updateBiometricProfile(userId, features) {
+  static async updateBiometricProfile(
+    userId: string,
+    features: BiometricFeatures
+  ) {
     const profile = this.biometricProfiles.get(userId);
 
     if (!profile) {
@@ -253,7 +257,7 @@ export class UserManager {
       ) / features.flightTimes.length;
 
     // Create new sample
-    const newSample = {
+    const newSample: BiometricSampleSummary = {
       avgHoldTime,
       avgFlightTime,
       holdTimeVariance,
@@ -299,7 +303,7 @@ export class UserManager {
   /**
    * Delete user (admin function)
    */
-  static async deleteUser(userId) {
+  static async deleteUser(userId: string) {
     const deleted = this.users.delete(userId);
     this.biometricProfiles.delete(userId);
 
@@ -313,11 +317,11 @@ export class UserManager {
   /**
    * Reset biometric profile (admin function)
    */
-  static async resetBiometricProfile(userId) {
+  static async resetBiometricProfile(userId: string) {
     const user = this.users.get(userId);
     if (!user) return false;
 
-    const newProfile = {
+    const newProfile: BiometricProfile = {
       userId,
       createdAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
